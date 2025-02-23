@@ -33,7 +33,12 @@ type TfSyncProvider struct {
 
 // TfSyncProviderModel describes the provider data model.
 type TfSyncProviderModel struct {
-	RoleArn              types.String `tfsdk:"role_arn"`
+	Region                    types.String                    `tfsdk:"region"`
+	AssumeRoleWithWebIdentity *assumeRoleWithWebIdentityBlock `tfsdk:"assume_role_with_web_identity"`
+}
+
+type assumeRoleWithWebIdentityBlock struct {
+	RoleARN              types.String `tfsdk:"role_arn"`
 	WebIdentityTokenFile types.String `tfsdk:"web_identity_token_file"`
 }
 
@@ -45,13 +50,28 @@ func (p *TfSyncProvider) Metadata(ctx context.Context, req provider.MetadataRequ
 func (p *TfSyncProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"role_arn": schema.StringAttribute{
-				MarkdownDescription: "role arn to assume for s3 client",
-				Required:            true,
+			"region": schema.StringAttribute{
+				MarkdownDescription: "aws region",
+				Description:         "aws region",
+				Optional:            true,
 			},
-			"web_identity_token_file": schema.StringAttribute{
-				MarkdownDescription: "path to web identity token file for s3 client",
-				Required:            true,
+		},
+		Blocks: map[string]schema.Block{
+			"assume_role_with_web_identity": schema.SingleNestedBlock{
+				MarkdownDescription: "configure assume-role-with-web-identity for aws s3 client",
+				Description:         "configure assume-role-with-web-identity for aws s3 client",
+				Attributes: map[string]schema.Attribute{
+					"role_arn": schema.StringAttribute{
+						MarkdownDescription: "role arn to assume",
+						Description:         "role arn to assume",
+						Required:            true,
+					},
+					"web_identity_token_file": schema.StringAttribute{
+						MarkdownDescription: "path to web identity token file",
+						Description:         "path to web identity token file",
+						Required:            true,
+					},
+				},
 			},
 		},
 	}
@@ -79,15 +99,18 @@ func (p *TfSyncProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	cfg, err := config.LoadDefaultConfig(ctx)
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(data.Region.ValueString()))
 	if err != nil {
 		resp.Diagnostics.AddError("aws client", fmt.Sprintf("failed to load AWS configuration: %s", err))
 		return
 	}
 
 	stsClient := sts.NewFromConfig(cfg)
-	webIdentityProvider := stscreds.NewWebIdentityRoleProvider(stsClient, data.RoleArn.String(), stscreds.IdentityTokenFile(data.WebIdentityTokenFile.String()))
-	cfg.Credentials = aws.NewCredentialsCache(webIdentityProvider)
+
+	if data.AssumeRoleWithWebIdentity != nil {
+		cfg.Credentials = aws.NewCredentialsCache(stscreds.NewWebIdentityRoleProvider(stsClient, data.AssumeRoleWithWebIdentity.RoleARN.ValueString(), stscreds.IdentityTokenFile(data.AssumeRoleWithWebIdentity.WebIdentityTokenFile.ValueString())))
+	}
+
 	s3Client := s3.NewFromConfig(cfg)
 
 	cd := NewResourceConfigureData(tfeClient, s3Client)
