@@ -116,13 +116,13 @@ func (r *S3ObjectResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	state, d := getStateFile(ctx, r.tfeClient, data.WorkspaceId.String())
+	state, d := getStateFile(ctx, r.tfeClient, data.WorkspaceId.ValueString())
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	resp.Diagnostics.Append(putS3ObjectContents(ctx, r.s3Client, data.Bucket.String(), data.Key.String(), state)...)
+	resp.Diagnostics.Append(putS3ObjectContents(ctx, r.s3Client, data.Bucket.ValueString(), data.Key.ValueString(), state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -146,13 +146,13 @@ func (r *S3ObjectResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	state, d := getStateFile(ctx, r.tfeClient, data.WorkspaceId.String())
+	state, d := getStateFile(ctx, r.tfeClient, data.WorkspaceId.ValueString())
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	contents, d := getS3ObjectContents(ctx, r.s3Client, data.Bucket.String(), data.Key.String())
+	contents, d := getS3ObjectContents(ctx, r.s3Client, data.Bucket.ValueString(), data.Key.ValueString())
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -177,13 +177,13 @@ func (r *S3ObjectResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	state, d := getStateFile(ctx, r.tfeClient, data.WorkspaceId.String())
+	state, d := getStateFile(ctx, r.tfeClient, data.WorkspaceId.ValueString())
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	resp.Diagnostics.Append(putS3ObjectContents(ctx, r.s3Client, data.Bucket.String(), data.Key.String(), state)...)
+	resp.Diagnostics.Append(putS3ObjectContents(ctx, r.s3Client, data.Bucket.ValueString(), data.Key.ValueString(), state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -206,7 +206,7 @@ func (r *S3ObjectResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	resp.Diagnostics.Append(deleteS3Object(ctx, r.s3Client, data.Bucket.String(), data.Key.String())...)
+	resp.Diagnostics.Append(deleteS3Object(ctx, r.s3Client, data.Bucket.ValueString(), data.Key.ValueString())...)
 }
 
 func (r *S3ObjectResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -225,7 +225,7 @@ func sha256Contents(contents []byte) basetypes.StringValue {
 }
 
 func newS3ObjectResourceID(data *S3ObjectResourceModel) basetypes.StringValue {
-	return types.StringValue(fmt.Sprintf("%s/%s/%s", data.WorkspaceId.String(), data.Bucket.String(), data.Key.String()))
+	return types.StringValue(fmt.Sprintf("%s/%s/%s", data.WorkspaceId.ValueString(), data.Bucket.ValueString(), data.Key.ValueString()))
 }
 
 func getStateFile(ctx context.Context, client *tfe.Client, workspaceId string) (state []byte, diag diag.Diagnostics) {
