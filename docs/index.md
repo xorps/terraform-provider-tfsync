@@ -13,6 +13,8 @@ description: |-
 ## Example Usage
 
 ```terraform
+# Copyright (c) HashiCorp, Inc.
+
 provider "tfsync" {
   region = "us-east-1"
 
