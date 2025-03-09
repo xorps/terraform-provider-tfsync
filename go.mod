@@ -2,6 +2,9 @@ module github.com/xorps/terraform-provider-tfsync
 
 go 1.24.1
 
+tool github.com/hashicorp/copywrite
+tool github.com/hashicorp/terraform-plugin-docs
+
 require (
 	github.com/aws/aws-sdk-go-v2 v1.36.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.9
