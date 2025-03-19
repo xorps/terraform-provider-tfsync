@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.62
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.78.1
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.17
-	github.com/hashicorp/copywrite v0.21.0
+	github.com/hashicorp/copywrite v0.22.0
 	github.com/hashicorp/go-tfe v1.76.0
 	github.com/hashicorp/terraform-plugin-docs v0.21.0
 	github.com/hashicorp/terraform-plugin-framework v1.14.1
