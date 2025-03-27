@@ -343,6 +343,8 @@ func (o *putObjectOptions) validate() (diag diag.Diagnostics) {
 	if len(o.Contents) == 0 {
 		diag.AddError("putObjectOptions", "empty contents")
 	}
+
+	return
 }
 
 func putS3ObjectContents(ctx context.Context, client *s3.Client, o *putObjectOptions) (diag diag.Diagnostics) {
