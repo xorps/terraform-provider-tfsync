@@ -86,8 +86,8 @@ func (r *S3ObjectResource) Schema(ctx context.Context, req resource.SchemaReques
 }
 
 func (r *S3ObjectResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	// Prevent panic if the provider has not been configured.
 	if req.ProviderData == nil {
-		resp.Diagnostics.AddError("configure", "nil provider data")
 		return
 	}
 
