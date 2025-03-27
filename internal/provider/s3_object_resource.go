@@ -148,9 +148,9 @@ func (r *S3ObjectResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	o := &putObjectOptions{
-		Bucket:   data.Bucket.String(),
-		Key:      data.Key.String(),
-		KmsKeyId: data.KmsKeyId.String(),
+		Bucket:   data.Bucket.ValueString(),
+		Key:      data.Key.ValueString(),
+		KmsKeyId: data.KmsKeyId.ValueString(),
 		Contents: state,
 	}
 
@@ -230,9 +230,9 @@ func (r *S3ObjectResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 
 	o := &putObjectOptions{
-		Bucket:   data.Bucket.String(),
-		Key:      data.Key.String(),
-		KmsKeyId: data.KmsKeyId.String(),
+		Bucket:   data.Bucket.ValueString(),
+		Key:      data.Key.ValueString(),
+		KmsKeyId: data.KmsKeyId.ValueString(),
 		Contents: state,
 	}
 
@@ -323,22 +323,33 @@ func getS3ObjectContents(ctx context.Context, client *s3.Client, bucket string, 
 }
 
 type putObjectOptions struct {
-	// S3 Bucket Name
-	Bucket string
-
-	// S3 Bucket Key
-	Key string
-
-	// KMS Key ID
+	Bucket   string
+	Key      string
 	KmsKeyId string
-
-	// Object Contents
 	Contents []byte
 }
 
-func putS3ObjectContents(ctx context.Context, client *s3.Client, o *putObjectOptions) (diag diag.Diagnostics) {
+func (o *putObjectOptions) validate() (diag diag.Diagnostics) {
+	if o == nil {
+		diag.AddError("putObjectOptions", "nil receiver")
+		return
+	}
+	if o.Bucket == "" {
+		diag.AddError("putObjectOptions", "empty bucket")
+	}
+	if o.Key == "" {
+		diag.AddError("putObjectOptions", "empty key")
+	}
 	if len(o.Contents) == 0 {
-		diag.AddError("s3 client", "empty contents")
+		diag.AddError("putObjectOptions", "empty contents")
+	}
+
+	return
+}
+
+func putS3ObjectContents(ctx context.Context, client *s3.Client, o *putObjectOptions) (diag diag.Diagnostics) {
+	diag.Append(o.validate()...)
+	if diag.HasError() {
 		return
 	}
 
