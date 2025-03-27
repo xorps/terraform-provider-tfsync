@@ -23,10 +23,12 @@ Resource to sync tf-state to an s3 object
 
 ### Optional
 
+- `ignore_empty` (Boolean) ignore if no state is found
 - `kms_key_id` (String) kms key id
 
 ### Read-Only
 
 - `bucket_contents_sha256` (String) sha256 sum of s3 bucket object contents
 - `id` (String) Example identifier
+- `ignored` (Boolean) true if this was ignored due to no state file found and `ignore_empty` is enabled
 - `state_contents_sha256` (String) sha256 sum of tf state

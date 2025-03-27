@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 
@@ -46,6 +47,8 @@ type S3ObjectResourceModel struct {
 	StateContentsSha256  types.String `tfsdk:"state_contents_sha256"`
 	BucketContentsSha256 types.String `tfsdk:"bucket_contents_sha256"`
 	KmsKeyId             types.String `tfsdk:"kms_key_id"`
+	IgnoreEmpty          types.Bool   `tfsdk:"ignore_empty"`
+	Ignored              types.Bool   `tfsdk:"ignored"`
 }
 
 func (r *S3ObjectResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -87,6 +90,14 @@ func (r *S3ObjectResource) Schema(ctx context.Context, req resource.SchemaReques
 				MarkdownDescription: "kms key id",
 				Optional:            true,
 			},
+			"ignore_empty": schema.BoolAttribute{
+				MarkdownDescription: "ignore if no state is found",
+				Optional:            true,
+			},
+			"ignored": schema.BoolAttribute{
+				MarkdownDescription: "true if this was ignored due to no state file found and `ignore_empty` is enabled",
+				Computed:            true,
+			},
 		},
 	}
 }
@@ -122,9 +133,16 @@ func (r *S3ObjectResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	state, d := getStateFile(ctx, r.tfeClient, data.WorkspaceId.ValueString())
+	state, d, ignored := getStateFile(ctx, r.tfeClient, data.WorkspaceId.ValueString(), data.IgnoreEmpty.ValueBool())
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	data.Ignored = types.BoolValue(ignored)
+
+	if ignored {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 		return
 	}
 
@@ -159,9 +177,16 @@ func (r *S3ObjectResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	state, d := getStateFile(ctx, r.tfeClient, data.WorkspaceId.ValueString())
+	state, d, ignored := getStateFile(ctx, r.tfeClient, data.WorkspaceId.ValueString(), data.IgnoreEmpty.ValueBool())
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	data.Ignored = types.BoolValue(ignored)
+
+	if ignored {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 		return
 	}
 
@@ -190,9 +215,16 @@ func (r *S3ObjectResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	state, d := getStateFile(ctx, r.tfeClient, data.WorkspaceId.ValueString())
+	state, d, ignored := getStateFile(ctx, r.tfeClient, data.WorkspaceId.ValueString(), data.IgnoreEmpty.ValueBool())
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	data.Ignored = types.BoolValue(ignored)
+
+	if ignored {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 		return
 	}
 
@@ -248,9 +280,14 @@ func newS3ObjectResourceID(data *S3ObjectResourceModel) basetypes.StringValue {
 	return types.StringValue(fmt.Sprintf("%s/%s/%s", data.WorkspaceId.ValueString(), data.Bucket.ValueString(), data.Key.ValueString()))
 }
 
-func getStateFile(ctx context.Context, client *tfe.Client, workspaceId string) (state []byte, diag diag.Diagnostics) {
+func getStateFile(ctx context.Context, client *tfe.Client, workspaceId string, ignoreEmpty bool) (state []byte, diag diag.Diagnostics, ignored bool) {
 	ver, err := client.StateVersions.ReadCurrent(ctx, workspaceId)
 	if err != nil {
+		if ignoreEmpty && errors.Is(err, tfe.ErrResourceNotFound) {
+			ignored = true
+			return
+		}
+
 		diag.AddError("tfe client", fmt.Sprintf("failed to get state version: %s", err))
 		return
 	}
