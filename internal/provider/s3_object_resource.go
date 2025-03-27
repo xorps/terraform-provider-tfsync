@@ -50,6 +50,7 @@ type S3ObjectResourceModel struct {
 	KmsKeyId             types.String `tfsdk:"kms_key_id"`
 	IgnoreEmpty          types.Bool   `tfsdk:"ignore_empty"`
 	Ignored              types.Bool   `tfsdk:"ignored"`
+	SoftDelete           types.Bool   `tfsdk:"soft_delete"`
 }
 
 func (r *S3ObjectResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -98,6 +99,10 @@ func (r *S3ObjectResource) Schema(ctx context.Context, req resource.SchemaReques
 			"ignored": schema.BoolAttribute{
 				MarkdownDescription: "true if this was ignored due to no state file found and `ignore_empty` is enabled",
 				Computed:            true,
+			},
+			"soft_delete": schema.BoolAttribute{
+				MarkdownDescription: "use soft delete",
+				Optional:            true,
 			},
 		},
 	}
@@ -256,6 +261,11 @@ func (r *S3ObjectResource) Delete(ctx context.Context, req resource.DeleteReques
 	var data S3ObjectResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if data.SoftDelete.ValueBool() {
+		resp.Diagnostics.AddWarning("using soft delete", fmt.Sprintf("bucket: %s, key: %s", data.Bucket.ValueString(), data.Key.ValueString()))
 		return
 	}
 
