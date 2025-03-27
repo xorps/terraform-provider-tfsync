@@ -13,6 +13,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/hashicorp/go-tfe"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -265,10 +266,18 @@ func getS3ObjectContents(ctx context.Context, client *s3.Client, bucket string, 
 }
 
 func putS3ObjectContents(ctx context.Context, client *s3.Client, bucket string, key string, contents []byte) (diag diag.Diagnostics) {
+	if len(contents) == 0 {
+		diag.AddError("s3 client", "empty contents")
+		return
+	}
+
 	_, err := client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-		Body:   io.NopCloser(bytes.NewReader(contents)),
+		Bucket:            aws.String(bucket),
+		Key:               aws.String(key),
+		Body:              io.NopCloser(bytes.NewReader(contents)),
+		ContentLength:     aws.Int64(int64(len(contents))),
+		ContentType:       aws.String("application/json"),
+		ChecksumAlgorithm: s3types.ChecksumAlgorithmSha256,
 	})
 	if err != nil {
 		diag.AddError("s3 client", fmt.Sprintf("failed s3 put object: %s", err))
