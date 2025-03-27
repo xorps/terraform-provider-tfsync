@@ -36,8 +36,9 @@ func NewS3ObjectResource() resource.Resource {
 }
 
 type S3ObjectResource struct {
-	tfeClient *tfe.Client
-	s3Client  *s3.Client
+	softDelete bool
+	tfeClient  *tfe.Client
+	s3Client   *s3.Client
 }
 
 type S3ObjectResourceModel struct {
@@ -123,6 +124,7 @@ func (r *S3ObjectResource) Configure(ctx context.Context, req resource.Configure
 		return
 	}
 
+	r.softDelete = data.softDelete
 	r.tfeClient = data.tfeClient
 	r.s3Client = data.s3Client
 }
@@ -264,7 +266,7 @@ func (r *S3ObjectResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	if data.SoftDelete.ValueBool() {
+	if r.softDelete || data.SoftDelete.ValueBool() {
 		resp.Diagnostics.AddWarning("using soft delete", fmt.Sprintf("bucket: %s, key: %s", data.Bucket.ValueString(), data.Key.ValueString()))
 		return
 	}
