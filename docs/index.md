@@ -32,7 +32,7 @@ provider "tfsync" {
 
 - `assume_role_with_web_identity` (Block, Optional) configure assume-role-with-web-identity for aws s3 client (see [below for nested schema](#nestedblock--assume_role_with_web_identity))
 - `region` (String) aws region
-- `soft_delete` (String) enable soft delete on s3 object
+- `soft_delete` (Boolean) enable soft delete on s3 object
 
 <a id="nestedblock--assume_role_with_web_identity"></a>
 ### Nested Schema for `assume_role_with_web_identity`

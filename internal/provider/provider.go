@@ -57,7 +57,7 @@ func (p *TfSyncProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 				Description:         "aws region",
 				Optional:            true,
 			},
-			"soft_delete": schema.StringAttribute{
+			"soft_delete": schema.BoolAttribute{
 				MarkdownDescription: "enable soft delete on s3 object",
 				Description:         "enable soft delete on s3 object",
 				Optional:            true,
