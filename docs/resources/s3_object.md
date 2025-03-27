@@ -21,6 +21,10 @@ Resource to sync tf-state to an s3 object
 - `key` (String) s3 bucket key
 - `workspace_id` (String) terraform workspace id
 
+### Optional
+
+- `kms_key_id` (String) kms key id
+
 ### Read-Only
 
 - `bucket_contents_sha256` (String) sha256 sum of s3 bucket object contents
