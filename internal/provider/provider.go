@@ -35,6 +35,7 @@ type TfSyncProvider struct {
 // TfSyncProviderModel describes the provider data model.
 type TfSyncProviderModel struct {
 	Region                    types.String                    `tfsdk:"region"`
+	SoftDelete                types.Bool                      `tfsdk:"soft_delete"`
 	AssumeRoleWithWebIdentity *assumeRoleWithWebIdentityBlock `tfsdk:"assume_role_with_web_identity"`
 }
 
@@ -54,6 +55,11 @@ func (p *TfSyncProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 			"region": schema.StringAttribute{
 				MarkdownDescription: "aws region",
 				Description:         "aws region",
+				Optional:            true,
+			},
+			"soft_delete": schema.StringAttribute{
+				MarkdownDescription: "enable soft delete on s3 object",
+				Description:         "enable soft delete on s3 object",
 				Optional:            true,
 			},
 		},
@@ -79,12 +85,13 @@ func (p *TfSyncProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 }
 
 type ResourceConfigureData struct {
-	tfeClient *tfe.Client
-	s3Client  *s3.Client
+	softDelete bool
+	tfeClient  *tfe.Client
+	s3Client   *s3.Client
 }
 
-func NewResourceConfigureData(tfeClient *tfe.Client, s3Client *s3.Client) *ResourceConfigureData {
-	return &ResourceConfigureData{tfeClient: tfeClient, s3Client: s3Client}
+func NewResourceConfigureData(softDelete bool, tfeClient *tfe.Client, s3Client *s3.Client) *ResourceConfigureData {
+	return &ResourceConfigureData{softDelete: softDelete, tfeClient: tfeClient, s3Client: s3Client}
 }
 
 func (p *TfSyncProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
@@ -116,7 +123,7 @@ func (p *TfSyncProvider) Configure(ctx context.Context, req provider.ConfigureRe
 
 	s3Client := s3.NewFromConfig(cfg)
 
-	cd := NewResourceConfigureData(tfeClient, s3Client)
+	cd := NewResourceConfigureData(data.SoftDelete.ValueBool(), tfeClient, s3Client)
 
 	resp.DataSourceData = cd
 	resp.ResourceData = cd
