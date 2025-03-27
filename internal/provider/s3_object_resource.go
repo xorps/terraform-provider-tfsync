@@ -45,6 +45,7 @@ type S3ObjectResourceModel struct {
 	Key                  types.String `tfsdk:"key"`
 	StateContentsSha256  types.String `tfsdk:"state_contents_sha256"`
 	BucketContentsSha256 types.String `tfsdk:"bucket_contents_sha256"`
+	KmsKeyId             types.String `tfsdk:"kms_key_id"`
 }
 
 func (r *S3ObjectResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -81,6 +82,10 @@ func (r *S3ObjectResource) Schema(ctx context.Context, req resource.SchemaReques
 			"bucket_contents_sha256": schema.StringAttribute{
 				MarkdownDescription: "sha256 sum of s3 bucket object contents",
 				Computed:            true,
+			},
+			"kms_key_id": schema.StringAttribute{
+				MarkdownDescription: "kms key id",
+				Optional:            true,
 			},
 		},
 	}
@@ -123,7 +128,14 @@ func (r *S3ObjectResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	resp.Diagnostics.Append(putS3ObjectContents(ctx, r.s3Client, data.Bucket.ValueString(), data.Key.ValueString(), state)...)
+	o := &putObjectOptions{
+		Bucket:   data.Bucket.String(),
+		Key:      data.Key.String(),
+		KmsKeyId: data.KmsKeyId.String(),
+		Contents: state,
+	}
+
+	resp.Diagnostics.Append(putS3ObjectContents(ctx, r.s3Client, o)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -184,7 +196,14 @@ func (r *S3ObjectResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	resp.Diagnostics.Append(putS3ObjectContents(ctx, r.s3Client, data.Bucket.ValueString(), data.Key.ValueString(), state)...)
+	o := &putObjectOptions{
+		Bucket:   data.Bucket.String(),
+		Key:      data.Key.String(),
+		KmsKeyId: data.KmsKeyId.String(),
+		Contents: state,
+	}
+
+	resp.Diagnostics.Append(putS3ObjectContents(ctx, r.s3Client, o)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -265,20 +284,41 @@ func getS3ObjectContents(ctx context.Context, client *s3.Client, bucket string, 
 	return
 }
 
-func putS3ObjectContents(ctx context.Context, client *s3.Client, bucket string, key string, contents []byte) (diag diag.Diagnostics) {
-	if len(contents) == 0 {
+type putObjectOptions struct {
+	// S3 Bucket Name
+	Bucket string
+
+	// S3 Bucket Key
+	Key string
+
+	// KMS Key ID
+	KmsKeyId string
+
+	// Object Contents
+	Contents []byte
+}
+
+func putS3ObjectContents(ctx context.Context, client *s3.Client, o *putObjectOptions) (diag diag.Diagnostics) {
+	if len(o.Contents) == 0 {
 		diag.AddError("s3 client", "empty contents")
 		return
 	}
 
-	_, err := client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:            aws.String(bucket),
-		Key:               aws.String(key),
-		Body:              io.NopCloser(bytes.NewReader(contents)),
-		ContentLength:     aws.Int64(int64(len(contents))),
+	input := &s3.PutObjectInput{
+		Bucket:            aws.String(o.Bucket),
+		Key:               aws.String(o.Key),
+		Body:              io.NopCloser(bytes.NewReader(o.Contents)),
+		ContentLength:     aws.Int64(int64(len(o.Contents))),
 		ContentType:       aws.String("application/json"),
 		ChecksumAlgorithm: s3types.ChecksumAlgorithmSha256,
-	})
+	}
+
+	if o.KmsKeyId != "" {
+		input.ServerSideEncryption = s3types.ServerSideEncryptionAwsKms
+		input.SSEKMSKeyId = aws.String(o.KmsKeyId)
+	}
+
+	_, err := client.PutObject(ctx, input)
 	if err != nil {
 		diag.AddError("s3 client", fmt.Sprintf("failed s3 put object: %s", err))
 		return
