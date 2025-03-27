@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -340,6 +341,11 @@ func putS3ObjectContents(ctx context.Context, client *s3.Client, o *putObjectOpt
 		diag.AddError("s3 client", "empty contents")
 		return
 	}
+
+	ctx = tflog.SetField(ctx, "bucket", o.Bucket)
+	ctx = tflog.SetField(ctx, "key", o.Key)
+
+	tflog.Debug(ctx, "tfsync putobject")
 
 	input := &s3.PutObjectInput{
 		Bucket:            aws.String(o.Bucket),
