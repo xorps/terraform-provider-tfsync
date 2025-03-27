@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure TfSyncProvider satisfies various provider interfaces.
@@ -87,6 +88,8 @@ func NewResourceConfigureData(tfeClient *tfe.Client, s3Client *s3.Client) *Resou
 }
 
 func (p *TfSyncProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	tflog.Info(ctx, "Configuring tfsync provider")
+
 	var data TfSyncProviderModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
@@ -117,6 +120,8 @@ func (p *TfSyncProvider) Configure(ctx context.Context, req provider.ConfigureRe
 
 	resp.DataSourceData = cd
 	resp.ResourceData = cd
+
+	tflog.Info(ctx, "Configured tfsync client", map[string]any{"aws_region": s3Client.Options().Region})
 }
 
 func (p *TfSyncProvider) Resources(ctx context.Context) []func() resource.Resource {
