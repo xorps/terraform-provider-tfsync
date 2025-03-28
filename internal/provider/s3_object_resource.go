@@ -52,6 +52,7 @@ type S3ObjectResourceModel struct {
 	IgnoreEmpty          types.Bool   `tfsdk:"ignore_empty"`
 	Ignored              types.Bool   `tfsdk:"ignored"`
 	SoftDelete           types.Bool   `tfsdk:"soft_delete"`
+	Tags                 types.Map    `tfsdk:"tags"`
 }
 
 func (r *S3ObjectResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -105,6 +106,11 @@ func (r *S3ObjectResource) Schema(ctx context.Context, req resource.SchemaReques
 				MarkdownDescription: "use soft delete",
 				Optional:            true,
 			},
+			"tags": schema.MapAttribute{
+				MarkdownDescription: "A map of default tags to apply to all resources.",
+				Optional:            true,
+				ElementType:         types.StringType,
+			},
 		},
 	}
 }
@@ -154,7 +160,7 @@ func (r *S3ObjectResource) Create(ctx context.Context, req resource.CreateReques
 		data.StateContentsSha256 = types.StringNull()
 		data.BucketContentsSha256 = types.StringNull()
 
-		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+		resp.State.RemoveResource(ctx)
 		return
 	}
 
@@ -201,7 +207,7 @@ func (r *S3ObjectResource) Read(ctx context.Context, req resource.ReadRequest, r
 		data.StateContentsSha256 = types.StringNull()
 		data.BucketContentsSha256 = types.StringNull()
 
-		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+		resp.State.RemoveResource(ctx)
 		return
 	}
 
@@ -224,36 +230,43 @@ func (r *S3ObjectResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	var data S3ObjectResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	var plan S3ObjectResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	state, d, ignored := getStateFile(ctx, r.tfeClient, data.WorkspaceId.ValueString(), data.IgnoreEmpty.ValueBool())
+	var tags map[string]string
+	resp.Diagnostics.Append(plan.Tags.ElementsAs(ctx, &tags, true)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	contents, d, ignored := getStateFile(ctx, r.tfeClient, plan.WorkspaceId.ValueString(), plan.IgnoreEmpty.ValueBool())
 	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	data.Ignored = types.BoolValue(ignored)
+	plan.Ignored = types.BoolValue(ignored)
 
 	if ignored {
-		data.StateContentsSha256 = types.StringNull()
-		data.BucketContentsSha256 = types.StringNull()
+		plan.StateContentsSha256 = types.StringNull()
+		plan.BucketContentsSha256 = types.StringNull()
 
-		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+		resp.State.RemoveResource(ctx)
 		return
 	}
 
-	data.StateContentsSha256 = sha256Contents(state)
-	data.BucketContentsSha256 = sha256Contents(state)
+	plan.StateContentsSha256 = sha256Contents(contents)
+	plan.BucketContentsSha256 = sha256Contents(contents)
 
 	o := &putObjectOptions{
-		Bucket:   data.Bucket.ValueString(),
-		Key:      data.Key.ValueString(),
-		KmsKeyId: data.KmsKeyId.ValueString(),
-		Contents: state,
+		Bucket:   plan.Bucket.ValueString(),
+		Key:      plan.Key.ValueString(),
+		KmsKeyId: plan.KmsKeyId.ValueString(),
+		Contents: contents,
+		Tags:     tags,
 	}
 
 	resp.Diagnostics.Append(putS3ObjectContents(ctx, r.s3Client, o)...)
@@ -261,7 +274,7 @@ func (r *S3ObjectResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *S3ObjectResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -349,6 +362,7 @@ type putObjectOptions struct {
 	Key      string
 	KmsKeyId string
 	Contents []byte
+	Tags     map[string]string
 }
 
 func (o *putObjectOptions) validate() (diag diag.Diagnostics) {
@@ -392,6 +406,10 @@ func putS3ObjectContents(ctx context.Context, client *s3.Client, o *putObjectOpt
 	if o.KmsKeyId != "" {
 		input.ServerSideEncryption = s3types.ServerSideEncryptionAwsKms
 		input.SSEKMSKeyId = aws.String(o.KmsKeyId)
+	}
+
+	if len(o.Tags) > 0 {
+		input.Tagging = aws.String(newTags(o.Tags))
 	}
 
 	_, err := client.PutObject(ctx, input)
