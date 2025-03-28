@@ -26,6 +26,7 @@ Resource to sync tf-state to an s3 object
 - `ignore_empty` (Boolean) ignore if no state is found
 - `kms_key_id` (String) kms key id
 - `soft_delete` (Boolean) use soft delete
+- `tags` (Map of String) A map of default tags to apply to all resources.
 
 ### Read-Only
 
