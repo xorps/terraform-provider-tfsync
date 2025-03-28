@@ -147,12 +147,19 @@ func (r *S3ObjectResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
+	data.Id = newS3ObjectResourceID(&data)
 	data.Ignored = types.BoolValue(ignored)
 
 	if ignored {
+		data.StateContentsSha256 = types.StringNull()
+		data.BucketContentsSha256 = types.StringNull()
+
 		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 		return
 	}
+
+	data.StateContentsSha256 = sha256Contents(state)
+	data.BucketContentsSha256 = sha256Contents(state)
 
 	o := &putObjectOptions{
 		Bucket:   data.Bucket.ValueString(),
@@ -165,10 +172,6 @@ func (r *S3ObjectResource) Create(ctx context.Context, req resource.CreateReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	data.Id = newS3ObjectResourceID(&data)
-	data.StateContentsSha256 = sha256Contents(state)
-	data.BucketContentsSha256 = sha256Contents(state)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -191,12 +194,18 @@ func (r *S3ObjectResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
+	data.Id = newS3ObjectResourceID(&data)
 	data.Ignored = types.BoolValue(ignored)
 
 	if ignored {
+		data.StateContentsSha256 = types.StringNull()
+		data.BucketContentsSha256 = types.StringNull()
+
 		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 		return
 	}
+
+	data.StateContentsSha256 = sha256Contents(state)
 
 	contents, d := getS3ObjectContents(ctx, r.s3Client, data.Bucket.ValueString(), data.Key.ValueString())
 	resp.Diagnostics.Append(d...)
@@ -204,8 +213,6 @@ func (r *S3ObjectResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	data.Id = newS3ObjectResourceID(&data)
-	data.StateContentsSha256 = sha256Contents(state)
 	data.BucketContentsSha256 = sha256Contents(contents)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -232,9 +239,15 @@ func (r *S3ObjectResource) Update(ctx context.Context, req resource.UpdateReques
 	data.Ignored = types.BoolValue(ignored)
 
 	if ignored {
+		data.StateContentsSha256 = types.StringNull()
+		data.BucketContentsSha256 = types.StringNull()
+
 		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 		return
 	}
+
+	data.StateContentsSha256 = sha256Contents(state)
+	data.BucketContentsSha256 = sha256Contents(state)
 
 	o := &putObjectOptions{
 		Bucket:   data.Bucket.ValueString(),
@@ -247,9 +260,6 @@ func (r *S3ObjectResource) Update(ctx context.Context, req resource.UpdateReques
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	data.StateContentsSha256 = sha256Contents(state)
-	data.BucketContentsSha256 = sha256Contents(state)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
