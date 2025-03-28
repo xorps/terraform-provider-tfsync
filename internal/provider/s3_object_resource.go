@@ -207,7 +207,7 @@ func (r *S3ObjectResource) Read(ctx context.Context, req resource.ReadRequest, r
 		data.StateContentsSha256 = types.StringNull()
 		data.BucketContentsSha256 = types.StringNull()
 
-		resp.State.RemoveResource(ctx)
+		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 		return
 	}
 
