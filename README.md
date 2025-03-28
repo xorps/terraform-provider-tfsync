@@ -1,4 +1,37 @@
-# Terraform Provider Scaffolding (Terraform Plugin Framework)
+# terraform-provider-tfsync
+
+## Example Usage
+```hcl
+provider "tfsync" {
+  region = "us-east-1"
+
+  assume_role_with_web_identity {
+    role_arn                = "my-role-arn"
+    web_identity_token_file = "my-token"
+  }
+}
+
+data "tfe_workspace_ids" "all" {
+  names        = ["*"]
+  organization = var.organization
+}
+
+resource "tfsync_s3_object" "this" {
+  for_each = data.tfe_workspace_ids.all.ids
+
+  bucket       = var.bucket
+  key          = "statefiles/${each.key}/terraform.tfstate"
+  workspace_id = each.value
+  ignore_empty = true # do nothing for workspaces with no state
+
+  # tags to apply to s3 object
+  tags = {
+    MyTag = MyValue
+  }
+}
+```
+
+## Terraform Provider Scaffolding (Terraform Plugin Framework)
 
 _This template repository is built on the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework). The template repository built on the [Terraform Plugin SDK](https://github.com/hashicorp/terraform-plugin-sdk) can be found at [terraform-provider-scaffolding](https://github.com/hashicorp/terraform-provider-scaffolding). See [Which SDK Should I Use?](https://developer.hashicorp.com/terraform/plugin/framework-benefits) in the Terraform documentation for additional information._
 
