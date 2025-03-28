@@ -160,7 +160,7 @@ func (r *S3ObjectResource) Create(ctx context.Context, req resource.CreateReques
 		data.StateContentsSha256 = types.StringNull()
 		data.BucketContentsSha256 = types.StringNull()
 
-		resp.State.RemoveResource(ctx)
+		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 		return
 	}
 
@@ -254,7 +254,7 @@ func (r *S3ObjectResource) Update(ctx context.Context, req resource.UpdateReques
 		plan.StateContentsSha256 = types.StringNull()
 		plan.BucketContentsSha256 = types.StringNull()
 
-		resp.State.RemoveResource(ctx)
+		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 		return
 	}
 
